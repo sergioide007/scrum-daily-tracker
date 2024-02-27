@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scrum Daily Tracker</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #3b5998;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .button {
+            display: inline-block;
+            background-color: #4267b2;
+            border: none;
+            color: #FFFFFF;
+            text-align: center;
+            font-size: 16px;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .button:hover {
+            background-color: #364e8a;
+        }
+
+        .estrella {
+            color: #808080;
+            cursor: pointer;
+            transition: color 0.3s;
+            font-size: 24px;
+        }
+
+        .estrella:hover {
+            color: #d4af37;
+        }
+
+        .estrella.check {
+            color: #ffd700;
+        }
+
+        #cronometroGeneral,
+        #cronometroAdicional {
+            font-size: 2em;
+            color: #3b5998;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f7f7f7;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        p {
+            color: #3b5998;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        pre {
+            position: relative;
+            background: #d3d6db;
+            padding: 10px;
+            font-size: 15px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            border: 1px solid #e6e7e9;
+            max-width: 500px;
+            margin-bottom: 20px;
+            font-family: Arial, sans-serif;
+        }
+
+        .copy-button {
+            background-color: #4267b2;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+
+        .copy-button:hover {
+            background-color: #364e8a;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-input+label {
+            background-color: #4267b2;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .file-input+label:hover {
+            background-color: #364e8a;
+        }
+
+        .file-input:focus+label {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(50, 123, 184, 0.5);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Scrum Daily Tracker</h1>
+        <input type="text" id="iniciativa" placeholder="Iniciativa">
+        <input type="text" id="usuario" placeholder="Usuario">
+        <button class="button" onclick="agregarIniciativaYUsuario()">Agregar</button>
+
+        <h2>Cronómetro General: <span id="cronometroGeneral">15:00</span></h2>
+        <h2 id="cronometroAdicional" style="display: none;">Tiempo Adicional: 00:00</h2>
+        <button class="button" onclick="resetTracker()">Reiniciar Cronómetro</button>
+        <input type="file" id="cargarJson" accept=".json" class="file-input">
+        <label for="cargarJson">Cargar JSON</label>
+        <button class="button" onclick="descargarJSON()">Descargar datos como JSON</button>
+
+        <table id="tabla-integrantes">
+            <thead>
+                <tr>
+                    <th>Iniciativa</th>
+                    <th>Usuario</th>
+                    <th>Tiempo</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Los datos se insertarán aquí dinámicamente -->
+            </tbody>
+        </table>
+
+        <p>Para llenar la tabla también puedes Cargar un JSON, con este formato:
+        </p>
+
+        <pre id="jsonExample">
+                [
+                    {"iniciativa": "Banca minorista", "usuario": "Juan Perez" },
+                    {"iniciativa": "Banca empresa", "usuario": "Leo Ruiz"}
+                ]
+            </pre>
+
+        <button class="copy-button" onclick="copyToClipboard()">Copiar JSON</button>
+
+
+    </div>
+
+
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        const data = [];
+        let tiempoPorPersona = {};
+        let cronometroGeneral = null;
+        let tiempoAdicional = 0;
+
+        function obtenerDatosTabla() {
+            const filas = document.querySelectorAll('#tabla-integrantes tbody tr');
+            const datos = Array.from(filas).map(fila => {
+                const celdas = fila.querySelectorAll('td');
+                return {
+                    iniciativa: celdas[0].textContent,
+                    usuario: celdas[1].textContent.toString().replace('★ ', ''),
+                    tiempo: celdas[2].textContent
+                };
+            });
+            return datos;
+        }
+
+        function descargarJSON() {
+            const datos = obtenerDatosTabla();
+            const datosJSON = JSON.stringify(datos, null, 2);
+            const blob = new Blob([datosJSON], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'datos.json';
+            a.click();
+        }
+
+        function copyToClipboard() {
+            const textarea = document.createElement('textarea');
+            textarea.textContent = document.getElementById('jsonExample').textContent;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            alert('Ejemplo copiado al portapapeles!');
+        }
+
+        document.getElementById('cargarJson').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    try {
+                        const jsonData = JSON.parse(e.target.result);
+                        cargarDatosDesdeJson(jsonData);
+                    } catch (error) {
+                        console.error("Error al cargar el archivo JSON:", error);
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        function cargarDatosDesdeJson(jsonData) {
+            data.length = 0;
+            jsonData.forEach(item => {
+                data.push({ nombre: item.usuario, iniciativa: item.iniciativa });
+            });
+            generarTracking();
+        }
+
+        function agregarIniciativaYUsuario() {
+            const iniciativa = document.getElementById('iniciativa').value;
+            const usuario = document.getElementById('usuario').value;
+            if (iniciativa && usuario) {
+                data.push({ nombre: usuario, iniciativa: iniciativa });
+                document.getElementById('iniciativa').value = '';
+                document.getElementById('usuario').value = '';
+                generarTracking();
+            }
+        }
+
+        function iniciarCronometro(nombre) {
+            if (!tiempoPorPersona[nombre]) {
+                tiempoPorPersona[nombre] = performance.now();
+                if (!cronometroGeneral) {
+                    iniciarCronometroGeneral();
+                }
+            }
+        }
+
+        function resetTracker() {
+            tiempoPorPersona = {};
+            if (cronometroGeneral) {
+                clearInterval(cronometroGeneral);
+                cronometroGeneral = null;
+            }
+            iniciarCronometroGeneral();
+            generarTracking();
+        }
+
+        function convertirMilisegundosAMinutosYSegundos(milisegundos) {
+            if (isNaN(milisegundos)) {
+                return "00:00";
+            }
+            const segundos = Math.floor(milisegundos / 1000);
+            const minutos = Math.floor(segundos / 60);
+            const segundosRestantes = segundos % 60;
+            return `${minutos.toString().padStart(2, '0')}:${segundosRestantes.toString().padStart(2, '0')}`;
+        }
+
+        function iniciarCronometroGeneral() {
+            const limite = 15 * 60 * 1000;
+            let tiempoRestante = limite;
+            cronometroGeneral = setInterval(() => {
+                tiempoRestante -= 1000;
+                if (tiempoRestante <= 0) {
+                    clearInterval(cronometroGeneral);
+                    document.getElementById("cronometroGeneral").textContent = '00:00';
+                    document.getElementById("cronometroAdicional").style.display = 'block';
+                    cronometroGeneral = null;
+                } else {
+                    const minutos = Math.floor(tiempoRestante / (60 * 1000));
+                    const segundos = Math.floor((tiempoRestante % (60 * 1000)) / 1000);
+                    document.getElementById("cronometroGeneral").textContent = `${minutos}:${segundos.toString().padStart(2, '0')}`;
+                }
+            }, 1000);
+        }
+
+        function generarTracking() {
+            let agrupadoPorIniciativa = {};
+            data.forEach(persona => {
+                if (!agrupadoPorIniciativa[persona.iniciativa]) {
+                    agrupadoPorIniciativa[persona.iniciativa] = [];
+                }
+                agrupadoPorIniciativa[persona.iniciativa].push(persona);
+            });
+
+            const tbody = document.getElementById("tabla-integrantes").querySelector('tbody');
+            tbody.innerHTML = '';
+            for (const iniciativa in agrupadoPorIniciativa) {
+                agrupadoPorIniciativa[iniciativa].forEach(persona => {
+                    const tiempoEnSegundos = tiempoPorPersona[persona.nombre] || 0;
+                    const tiempoFormateado = convertirMilisegundosAMinutosYSegundos(tiempoEnSegundos);
+                    const claseEstrella = tiempoPorPersona[persona.nombre] && tiempoPorPersona[persona.nombre] > 0 ? 'check' : '';
+                    tbody.innerHTML += `
+                    <tr>
+                        <td>${iniciativa}</td>
+                        <td><span class="estrella ${claseEstrella}" onclick="marcarEstrella('${persona.nombre}')">★</span> ${persona.nombre}</td>
+                        <td>${tiempoPorPersona[persona.nombre] ? tiempoFormateado : '00:00'} </td>
+                        <td>
+                            <button class="button" onclick="iniciarCronometro('${persona.nombre}')">Iniciar</button>
+                            <button class="button" onclick="detenerCronometro('${persona.nombre}')">Detener</button>
+                        </td>
+                    </tr>
+                `;
+                });
+            }
+        }
+
+        function iniciarCronometro(nombre) {
+            if (!tiempoPorPersona[nombre]) {
+                tiempoPorPersona[nombre] = performance.now();
+            }
+        }
+
+        function actualizarPorcentajeTiempo() {
+            let tiempoTotal = 0;
+            Object.values(tiempoPorPersona).forEach(tiempo => tiempoTotal += tiempo);
+
+            Object.keys(tiempoPorPersona).forEach(nombre => {
+                const tiempoUtilizado = tiempoPorPersona[nombre];
+                const porcentaje = (tiempoUtilizado / tiempoTotal) * 100;
+                document.querySelector(`td:contains("${nombre}")`).nextSibling.textContent = `${porcentaje.toFixed(2)}%`;
+            });
+        }
+
+        function detenerCronometro(nombre) {
+            if (tiempoPorPersona[nombre]) {
+                const tiempoActual = performance.now();
+                const tiempoTranscurrido = tiempoActual - tiempoPorPersona[nombre];
+                tiempoPorPersona[nombre] = tiempoTranscurrido;
+                actualizarEstrella(nombre);
+                generarTracking();
+                verificarParticipacionCompleta();
+            }
+            actualizarPorcentajeTiempo();
+        }
+
+        function marcarEstrella(nombre) {
+            actualizarEstrella(nombre);
+            verificarParticipacionCompleta();
+        }
+
+        function actualizarEstrella(nombre) {
+            document.querySelectorAll('.estrella').forEach(estrella => {
+                estrella.classList.remove('check');
+
+                if (estrella.nextSibling.textContent.trim() === nombre) {
+                    estrella.classList.add('check');
+                }
+            });
+        }
+
+        function verificarParticipacionCompleta() {
+            if (document.querySelectorAll('.estrella.check').length === data.length) {
+                clearInterval(cronometroGeneral);
+                cronometroGeneral = null;
+            }
+        }
+
+        iniciarCronometroGeneral();
+        generarTracking();
+    </script>
+</body>
+
+</html>
