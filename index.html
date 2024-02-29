@@ -195,6 +195,7 @@
         const data = [];
         let tiempoPorPersona = {};
         let cronometroGeneral = null;
+        let cronometroAdicional = null;
         let tiempoAdicional = 0;
 
         function obtenerDatosTabla() {
@@ -303,13 +304,32 @@
                 if (tiempoRestante <= 0) {
                     clearInterval(cronometroGeneral);
                     document.getElementById("cronometroGeneral").textContent = '00:00';
-                    document.getElementById("cronometroAdicional").style.display = 'block';
                     cronometroGeneral = null;
+                    iniciarCronometroAdicional();
                 } else {
                     const minutos = Math.floor(tiempoRestante / (60 * 1000));
                     const segundos = Math.floor((tiempoRestante % (60 * 1000)) / 1000);
                     document.getElementById("cronometroGeneral").textContent = `${minutos}:${segundos.toString().padStart(2, '0')}`;
                 }
+            }, 1000);
+        }
+
+        function iniciarCronometroAdicional() {
+            document.getElementById("cronometroAdicional").style.display = 'block';
+            let segundos = 0;
+            let minutos = 0;
+
+            cronometroAdicional = setInterval(function () {
+                segundos++;
+                if (segundos >= 60) {
+                    segundos = 0;
+                    minutos++;
+                }
+
+                const segundosFormateados = segundos < 10 ? "0" + segundos : segundos;
+                const minutosFormateados = minutos < 10 ? "0" + minutos : minutos;
+
+                document.getElementById("cronometroAdicional").textContent = `Tiempo Adicional: ${minutosFormateados}:${segundosFormateados}`;
             }, 1000);
         }
 
@@ -362,7 +382,15 @@
         }
 
         function detenerCronometro(nombre) {
-            if (tiempoPorPersona[nombre]) {
+            const estrellaDesactivada = true;
+            document.querySelectorAll('.estrella.check').forEach(estrella => {
+
+                if (estrella.nextSibling.textContent.trim() === nombre) {
+                    estrellaDesactivada = false;
+                }
+            });
+
+            if (tiempoPorPersona[nombre] && estrellaDesactivada) {
                 const tiempoActual = performance.now();
                 const tiempoTranscurrido = tiempoActual - tiempoPorPersona[nombre];
                 tiempoPorPersona[nombre] = tiempoTranscurrido;
@@ -392,6 +420,8 @@
             if (document.querySelectorAll('.estrella.check').length === data.length) {
                 clearInterval(cronometroGeneral);
                 cronometroGeneral = null;
+                clearInterval(cronometroAdicional);
+                cronometroAdicional = null;
             }
         }
 
